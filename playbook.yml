@@ -1,0 +1,11 @@
+---
+- name: NetBox
+  hosts: localhost
+  connection: local
+  tasks:
+    - name: Get VRF details for test
+      ansible.builtin.debug:
+        msg: "{{ query('netbox.netbox.nb_lookup', 'vrfs', api_endpoint='http://localhost:8000/', token='', api_filter='name=test', validate_certs=False) }}"
+    - name: Get VRF details specific prefix
+      ansible.builtin.debug:
+        msg: "{{ query('netbox.netbox.nb_lookup', 'prefixes', api_endpoint='http://localhost:8000/', token='', api_filter='vrf_id__n=null', validate_certs=False) }}"

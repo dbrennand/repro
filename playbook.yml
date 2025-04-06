@@ -5,7 +5,7 @@
   tasks:
     - name: Get VRF details for test
       ansible.builtin.debug:
-        msg: "{{ query('netbox.netbox.nb_lookup', 'vrfs', api_endpoint='http://localhost:8000/', token='', api_filter='name=test', validate_certs=False) }}"
+        msg: "{{ query('netbox.netbox.nb_lookup', 'vrfs', api_endpoint='http://localhost:8000/', token='b1b4a2fb2f5504213fe639d6731ca8184242e039', api_filter='name=test', validate_certs=False) }}"
     - name: Get VRF details specific prefix
       ansible.builtin.debug:
-        msg: "{{ query('netbox.netbox.nb_lookup', 'prefixes', api_endpoint='http://localhost:8000/', token='', api_filter='vrf_id__n=null', validate_certs=False) }}"
+        msg: "{{ query('netbox.netbox.nb_lookup', 'prefixes', api_endpoint='http://localhost:8000/', token='b1b4a2fb2f5504213fe639d6731ca8184242e039', api_filter='vrf_id__gte=1', validate_certs=False) }}"

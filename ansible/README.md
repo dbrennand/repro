@@ -2,6 +2,12 @@
 
 This repository contains the `dbrennand.repro` Ansible Collection.
 
+```
+uv sync
+uv run ade install --no-seed -e "$(pwd)/ansible"
+uv run ansible-lint -v --project-dir "$(pwd)/ansible"
+```
+
 <!--start requires_ansible-->
 <!--end requires_ansible-->
 

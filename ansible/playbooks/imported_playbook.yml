@@ -1,0 +1,9 @@
+---
+- name: Imported Playbook
+  hosts: localhost
+  tasks:
+    - debug:
+        var: file_content
+
+    - debug:
+        var: environment_variable

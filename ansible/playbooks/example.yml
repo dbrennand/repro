@@ -1,0 +1,7 @@
+---
+- name: Example Playbook
+  hosts: localhost
+  vars:
+    my_variable: chicken
+  roles:
+    - dbrennand.repro.run

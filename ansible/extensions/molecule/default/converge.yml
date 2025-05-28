@@ -1,6 +1,0 @@
----
-- name: Top Level Playbook
-  vars:
-    file_content: "{{ lookup('ansible.builtin.file', '../extensions/molecule/default/example.yml') }}"
-    environment_variable: "{{ lookup('ansible.builtin.env', 'EXAMPLE', default='hello') }}"
-  ansible.builtin.import_playbook: dbrennand.repro.imported_playbook

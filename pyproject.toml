@@ -5,7 +5,5 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "ansible-core>=2.18.5",
-    "ansible-dev-environment>=25.4.0",
-    "molecule>=25.4.0",
+    "ansible-dev-tools>=25.5.2",
 ]

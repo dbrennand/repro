@@ -1,0 +1,7 @@
+---
+driver:
+  name: vagrant
+
+platforms:
+  - name: instance
+    box: bento/ubuntu-24.04

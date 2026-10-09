@@ -1,0 +1,6 @@
+---
+- name: Converge
+  hosts: instance
+  tasks:
+    - ansible.builtin.debug:
+        msg: Hello World!

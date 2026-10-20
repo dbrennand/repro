@@ -11,16 +11,18 @@ permissions:
   contents: read
 jobs:
   test:
-    name: Actual ansible-test (${{ matrix.runner }}, replica ${{ matrix.replica }})
+    name: Actual ansible-test (${{ matrix.runner }}, ${{ matrix.wakeup }}, replica ${{ matrix.replica }})
     strategy:
       fail-fast: false
       matrix:
         runner: [ubuntu-24.04, ubuntu-26.04]
         replica: [1, 2]
+        wakeup: [original, retry]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 20
     env:
       # Last devel commit before the original job. The original installed a moving tarball.
+      WAKE_MODE: ${{ matrix.wakeup }}
       ANSIBLE_REVISION: f7319e09448e13fa2bc407a1afcd8990f47040fb
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -72,6 +74,6 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         if: always()
         with:
-          name: actual-ansible-${{ matrix.runner }}-${{ matrix.replica }}-${{ github.run_attempt }}
+          name: actual-ansible-${{ matrix.runner }}-${{ matrix.wakeup }}-${{ matrix.replica }}-${{ github.run_attempt }}
           path: diagnostics/
           retention-days: 14

@@ -30,5 +30,11 @@ if os.environ.get('WAKE_MODE') == 'retry':
     assert prefix.count(call) == 1
     prefix = prefix.replace(call, "                wake_output = " + call.strip() + "\n                display.info(f'Wake diagnostic: {wake_output[0]}')")
     print('Enabled bounded wakeup retry; remount failure still propagates')
+else:
+    wake = "init_command += f' && {shlex.join(self.wake_command)}'"
+    observed = "init_command += ' && (pkill sleep; rc=$?; if [ \"$rc\" -ne 0 ]; then echo original_pkill_rc=$rc; ps -ef; fi; exit \"$rc\")'"
+    assert prefix.count(wake) == 1
+    prefix = prefix.replace(wake, observed)
+    print('Original wakeup: diagnostics run only after pkill fails')
 source.write_text(prefix + separator + suffix)
 print(f'Instrumented failure handler: {source}')

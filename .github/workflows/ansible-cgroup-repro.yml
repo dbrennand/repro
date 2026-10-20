@@ -1,0 +1,62 @@
+name: Ansible cgroup initialization repro
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ansible-test-kernel-repro]
+    paths:
+      - .github/workflows/ansible-cgroup-repro.yml
+      - scripts/ansible-cgroup-repro.sh
+
+permissions:
+  contents: read
+
+jobs:
+  reproduce:
+    name: Reproduce on ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-26.04]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    steps:
+      - name: Check out diagnostic script
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+
+      - name: Record runner configuration
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          {
+            printf 'ImageOS=%s\nImageVersion=%s\n' "$ImageOS" "$ImageVersion"
+            cat /etc/os-release
+            uname -a
+            systemctl --version
+            docker version
+            docker info
+            dpkg-query -W 'linux-image-*' systemd containerd.io docker-ce runc apparmor || true
+          } 2>&1 | tee diagnostics/runner.log
+
+      - name: Reproduce cgroup initialization
+        shell: bash
+        run: |
+          set -o pipefail
+          timeout --signal=TERM --kill-after=30s 5m bash scripts/ansible-cgroup-repro.sh \
+            2>&1 | tee diagnostics/repro.log
+
+      - name: Collect kernel diagnostics
+        if: always()
+        shell: bash
+        run: |
+          mkdir -p diagnostics
+          sudo journalctl -k --no-pager > diagnostics/kernel.log 2>&1
+
+      - name: Upload diagnostic logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ansible-cgroup-${{ matrix.runner }}-${{ github.run_attempt }}
+          path: diagnostics/
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,77 @@
+name: Actual ansible-test initialization
+on:
+  workflow_dispatch:
+  push:
+    branches: [ansible-test-kernel-repro]
+    paths:
+      - .github/workflows/actual-ansible-test.yml
+      - scripts/diagnose-host.sh
+      - scripts/instrument-ansible.py
+permissions:
+  contents: read
+jobs:
+  test:
+    name: Actual ansible-test (${{ matrix.runner }}, replica ${{ matrix.replica }})
+    strategy:
+      fail-fast: false
+      matrix:
+        runner: [ubuntu-24.04, ubuntu-26.04]
+        replica: [1, 2]
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 20
+    env:
+      # Last devel commit before the original job. The original installed a moving tarball.
+      ANSIBLE_REVISION: f7319e09448e13fa2bc407a1afcd8990f47040fb
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5
+        with:
+          python-version: '3.14'
+      - name: Record environment
+        run: |
+          mkdir -p diagnostics
+          {
+            printf 'ImageVersion=%s\nAnsible revision=%s\n' "$ImageVersion" "$ANSIBLE_REVISION"
+            uname -a
+            docker version
+            docker info
+            systemctl --version
+          } 2>&1 | tee diagnostics/environment.log
+      - name: Install Ansible and prepare minimal collection
+        run: |
+          python -m pip install "https://github.com/ansible/ansible/archive/${ANSIBLE_REVISION}.tar.gz"
+          python scripts/instrument-ansible.py
+          mkdir -p fixture/ansible_collections/repro/cgroup/tests/integration/targets/smoke
+          printf 'namespace: repro\nname: cgroup\nversion: 1.0.0\nreadme: README.md\nauthors: [repro]\n' > fixture/ansible_collections/repro/cgroup/galaxy.yml
+          printf '# Initialization repro\n' > fixture/ansible_collections/repro/cgroup/README.md
+          printf '#!/usr/bin/env bash\nset -eu\nprintf "CONTROLLER_INITIALIZED\\n"\n' > fixture/ansible_collections/repro/cgroup/tests/integration/targets/smoke/runme.sh
+          chmod +x fixture/ansible_collections/repro/cgroup/tests/integration/targets/smoke/runme.sh
+      - name: Run actual ansible-test three times
+        shell: bash
+        run: |
+          export ANSIBLE_REPRO_DIAGNOSTIC="$GITHUB_WORKSPACE/scripts/diagnose-host.sh"
+          cd fixture/ansible_collections/repro/cgroup
+          failed=0
+          for trial in 1 2 3; do
+            echo "=== Actual ansible-test trial=$trial ==="
+            set +e
+            timeout --signal=TERM --kill-after=30s 4m ansible-test integration smoke \
+              --color no -v --docker default --python 3.14 --display-traceback error --coverage \
+              2>&1 | tee "$GITHUB_WORKSPACE/diagnostics/ansible-test-$trial.log"
+            result=${PIPESTATUS[0]}
+            set -e
+            echo "trial=$trial exit=$result" | tee -a "$GITHUB_WORKSPACE/diagnostics/results.log"
+            if [ "$result" -ne 0 ]; then failed=1; fi
+          done
+          exit "$failed"
+      - name: Collect kernel log
+        if: always()
+        run: |
+          mkdir -p diagnostics
+          sudo journalctl -k --no-pager > diagnostics/kernel.log 2>&1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: actual-ansible-${{ matrix.runner }}-${{ matrix.replica }}-${{ github.run_attempt }}
+          path: diagnostics/
+          retention-days: 14

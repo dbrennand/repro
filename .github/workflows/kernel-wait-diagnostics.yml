@@ -11,17 +11,18 @@ permissions:
   contents: read
 jobs:
   diagnose:
-    name: Kernel wait (${{ matrix.trace }}, replica ${{ matrix.replica }})
+    name: Cache comparison (${{ matrix.cache }}, replica ${{ matrix.replica }})
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        trace: [control, scheduler]
+        cache: [untouched, prewarmed]
         replica: [1, 2]
     env:
       ANSIBLE_REVISION: f7319e09448e13fa2bc407a1afcd8990f47040fb
-      TRACE_MODE: ${{ matrix.trace }}
+      TRACE_MODE: scheduler
+      CACHE_MODE: ${{ matrix.cache }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065
@@ -52,6 +53,20 @@ jobs:
           printf '# Initialization repro\n' > "$target/README.md"
           printf '#!/usr/bin/env bash\nset -eu\nprintf "CONTROLLER_INITIALIZED\\n"\n' > "$target/tests/integration/targets/smoke/runme.sh"
           chmod +x "$target/tests/integration/targets/smoke/runme.sh"
+      - name: Compare identical image pulls with targeted startup warming
+        run: |
+          docker pull quay.io/ansible/default-test-container:v2.23-2
+          docker pull quay.io/ansible/ansible-test-utility-container:3.6.0
+          start=$SECONDS
+          if [ "$CACHE_MODE" = prewarmed ]; then
+            docker run --rm --entrypoint /usr/bin/env quay.io/ansible/default-test-container:v2.23-2 sleep 0
+          else
+            docker run --rm --entrypoint /bin/true quay.io/ansible/ansible-test-utility-container:3.6.0
+          fi
+          # Give both arms at least the same settling interval after pulling.
+          remaining=$((5 - (SECONDS - start)))
+          if [ "$remaining" -gt 0 ]; then sleep "$remaining"; fi
+          printf 'cache=%s preconditioning_seconds=%s\n' "$CACHE_MODE" "$((SECONDS - start))" | tee diagnostics/preconditioning.log
       - name: Run original provisioning on fresh then reused image cache
         shell: bash
         run: |
@@ -84,6 +99,6 @@ jobs:
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         if: always()
         with:
-          name: kernel-wait-${{ matrix.trace }}-${{ matrix.replica }}-${{ github.run_attempt }}
+          name: kernel-cache-${{ matrix.cache }}-${{ matrix.replica }}-${{ github.run_attempt }}
           path: diagnostics/
           retention-days: 14

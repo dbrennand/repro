@@ -14,7 +14,7 @@ fi
   children=$(sudo cat "/proc/$controller/task/$controller/children")
   for pid in $children "$controller"; do
     echo "host_pid=$pid"
-    for field in comm stack wchan syscall status; do
+    for field in comm stack wchan syscall status maps; do
       echo "--- $field ---"
       sudo timeout 1s cat "/proc/$pid/$field" || true
     done
